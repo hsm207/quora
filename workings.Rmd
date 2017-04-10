@@ -1,0 +1,211 @@
+---
+title: "Kaggle - Quora Question Pairs"
+output:
+  html_notebook:
+    toc: TRUE
+    toc_float: TRUE
+---
+
+# Introduction
+
+Click [here](https://www.kaggle.com/c/quora-question-pairs)
+
+# Load libraries
+```{r}
+library(magrittr)
+```
+
+
+# Dataset
+
+Load train set:
+```{r}
+library(readr)
+train.df <- read_csv("./data/train.csv", 
+    col_types = cols(is_duplicate = col_logical()))
+
+train.df %<>%
+  dplyr::mutate(type = factor("train", c("train", "test")))
+
+summary(train.df)
+
+```
+View target label's distribution:
+```{r}
+train.df %>%
+  dplyr::select(is_duplicate) %>%
+  dplyr::group_by(is_duplicate) %>%
+  dplyr::summarise(count = n()) %>%
+  dplyr::mutate(count = count/sum(count))
+```
+
+Load test set:
+```{r}
+
+test.df <- read_csv("./data/test.csv")
+
+test.df %<>%
+  dplyr::mutate(type = factor("test", c("train", "test")))
+
+summary(test.df)
+
+```
+
+Consolidate the train and test set:
+```{r}
+consol.df <- train.df %>%
+  dplyr::bind_rows(test.df)
+
+summary(consol.df)
+```
+
+# Data preprocessing
+
+## Raw text
+
+Create a two-column data frame, question_id and question.
+
+Start with the training set:
+```{r}
+raw.df <- train.df %>%
+  dplyr::select(qid1, question1) %>%
+  magrittr::set_colnames(c("question_id", "question")) %>%
+  dplyr::bind_rows(train.df %>%
+                     dplyr::select(qid2, question2) %>%
+                     magrittr::set_colnames(c("question_id", "question"))) %>%
+  dplyr::mutate(question_id = as.character(paste(question_id, "train", sep = "-")))
+
+```
+
+Create dummy question ids for test set:
+```{r}
+dummy.ids <-
+  matrix(paste(1:(nrow(test.df) * 2), "test", sep = "-"), ncol = 2) %>%
+  as.data.frame(stringsAsFactors = F) %>%
+  magrittr::set_colnames(c("qid1", "qid2"))
+  
+head(dummy.ids)
+```
+
+```{r}
+test.df %<>%
+  dplyr::bind_cols(dummy.ids)
+
+head(test.df)
+```
+
+Join the questions in the test set into `test.df`:
+```{r}
+raw.df %<>%
+  dplyr::bind_rows(
+    test.df %>%
+      dplyr::select(qid1, question1) %>%
+      magrittr::set_colnames(c("question_id", "question")) %>%
+      dplyr::bind_rows(test.df %>%
+      dplyr::select(qid2, question2) %>%
+      magrittr::set_colnames(c("question_id", "question"))
+      )
+  )
+
+summary(raw.df)
+```
+
+Save `raw.df` (only unique question id and question pairs!):
+```{r}
+raw.df %>%
+  dplyr::distinct() %>%
+  write.csv("./data/raw.csv", row.names = F)
+```
+
+## Tidy text
+Load the raw text:
+```{r}
+if (!exists("raw.df")) raw.df <- read.csv("./data/raw.csv", stringsAsFactors = F)
+summary(raw.df)
+```
+
+Tidy the questions:
+```{r}
+tidy.df <- raw.df %>%
+  dplyr::sample_frac(5/100) %>%
+  tidytext::unnest_tokens(word, question)
+
+summary(tidy.df)
+```
+
+
+# Feature Engineering
+
+## Number of words
+
+Work off a sample of `raw.df`:
+```{r}
+sample.raw.df <- raw.df #%>%
+ # dplyr::sample_frac(1/100)
+
+dim(sample.raw.df)
+
+```
+
+Create a cluster of 4-nodes and set it as the default:
+```{r}
+my.cluster <- multidplyr::create_cluster(4)
+multidplyr::set_default_cluster(my.cluster)
+
+my.cluster
+```
+
+Load the required libraries into the cluster:
+```{r}
+multidplyr::cluster_library(my.cluster, c("magrittr"))
+```
+
+Group the data by question id and load it into the cluster :
+```{r}
+parts.df <- sample.raw.df %>%
+  multidplyr::partition(question_id)
+
+parts.df
+```
+
+Compute the number of words in each question:
+```{r}
+system.time(
+  word.count.df <- parts.df %>%
+   dplyr::do(
+    tidytext::unnest_tokens(., word, question) %>%
+      dplyr::count(question_id)
+  ) %>%
+  dplyr::collect()
+)
+
+word.count.df
+```
+```{r}
+word.count.df %>%
+  write.csv("./data/raw_with_word_count.csv", row.names = F)
+```
+
+Questions in `word.count.df` but not in `raw.df`:
+```{r}
+y <- word.count.df %>%
+  dplyr::anti_join(sample.raw.df, by = c("question_id"))
+
+y
+```
+
+Questions in `raw.df` but not in `word.count.df`:
+```{r}
+x <- sample.raw.df %>%
+  dplyr::anti_join(word.count.df, by = c("question_id"))
+
+x
+```
+
+Load the word count data frame:
+```{r}
+if (!exists("word.count.df"))
+  word.count.df <- read.csv("./data/raw_with_word_count.csv", stringsAsFactors = F
+  )
+summary(word.count.df)
+```
