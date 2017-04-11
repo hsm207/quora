@@ -202,7 +202,6 @@ x <- sample.raw.df %>%
 x
 ```
 
-<<<<<<< HEAD
 Load the word count data frame:
 ```{r}
 if (!exists("word.count.df"))
@@ -210,6 +209,4 @@ if (!exists("word.count.df"))
   )
 summary(word.count.df)
 ```
-=======
 
->>>>>>> 966cee08ff83491eeb3702762a5536f595c1fa64
