@@ -117,6 +117,18 @@ raw.df %>%
   write.csv("./data/raw.csv", row.names = F)
 ```
 
+Also, save `test.df` with the customised question ids:
+```{r}
+consol_with_custid.df <- train.df %>%
+  dplyr::mutate(qid1 = as.character(qid1),
+                qid2 = as.character(qid2)) %>%
+  dplyr::bind_rows(test.df)
+
+consol_with_custid.df %>% 
+  write.csv("./data/consol_with_custid.csv", row.names = F)
+```
+
+
 ## Tidy text
 Load the raw text:
 ```{r}
