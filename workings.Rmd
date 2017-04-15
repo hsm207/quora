@@ -124,7 +124,12 @@ consol_with_custid.df <- train.df %>%
                 qid2 = as.character(qid2)) %>%
   dplyr::bind_rows(test.df)
 
-consol_with_custid.df %>% 
+consol_with_custid.df %>%
+  # replace missing questions with some dummy string to avoid errors duing feature engineering
+  dplyr::mutate(
+  question1 = dplyr::if_else(is.na(question1), "NaN!", question1),
+  question2 = dplyr::if_else(is.na(question2), "NaN!", question1)
+  )  %>%
   write.csv("./data/consol_with_custid.csv", row.names = F)
 ```
 
