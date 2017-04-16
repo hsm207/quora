@@ -63,27 +63,15 @@ test.df %>%
   head
 ```
 
+For the purpose of OPIM 5671, do not work on test since it is too time consuming to engineer features for 2 million questions.
 
-Consolidate the train and test set:
-```{r}
-consol.df <- train.df %>%
-  dplyr::bind_rows(test.df)
-
-summary(consol.df)
-```
-```{r}
-consol.df %>%
-  dplyr::select(question1, question2) %>%
-  head
-```
 
 # Data preprocessing
 
 ## Raw text
 
-Create a two-column data frame, question_id and question.
+Create a two-column data frame, question_id and question:
 
-Start with the training set:
 ```{r}
 raw.df <- train.df %>%
   dplyr::select(qid1, question1) %>%
@@ -95,67 +83,31 @@ raw.df <- train.df %>%
 
 ```
 
-Create dummy question ids for test set:
-```{r}
-dummy.ids <-
-  matrix(paste(1:(nrow(test.df) * 2), "test", sep = "-"), ncol = 2) %>%
-  as.data.frame(stringsAsFactors = F) %>%
-  magrittr::set_colnames(c("qid1", "qid2"))
-  
-head(dummy.ids)
-```
-
-```{r}
-test.df %<>%
-  dplyr::bind_cols(dummy.ids)
-
-head(test.df)
-```
-
-Join the questions in the test set into `raw.df`:
-```{r}
-raw.df %<>%
-  dplyr::bind_rows(
-    test.df %>%
-      dplyr::select(qid1, question1) %>%
-      magrittr::set_colnames(c("question_id", "question")) %>%
-      dplyr::bind_rows(test.df %>%
-      dplyr::select(qid2, question2) %>%
-      magrittr::set_colnames(c("question_id", "question"))
-      )
-  )
-
-summary(raw.df)
-```
 
 Save `raw.df` (only unique question id and question pairs!):
 ```{r}
 raw.df %>%
   dplyr::distinct() %>%
-  write.csv("./data/raw.csv", row.names = F)
+  write.csv("./data/raw_opim5671.csv", row.names = F)
 ```
 
-Also, save consolidated data with the customised question ids:
+Also, fill missing questions in `train.df` and save it for feature engineering:
 ```{r}
-consol_with_custid.df <- train.df %>%
-  dplyr::mutate(qid1 = as.character(qid1),
-                qid2 = as.character(qid2)) %>%
-  dplyr::bind_rows(test.df)
 
-consol_with_custid.df %>%
+train.df %>%
   # replace missing questions with some dummy string to avoid errors duing feature engineering
   dplyr::mutate(
   question1 = dplyr::if_else(is.na(question1), "NaN!", question1),
   question2 = dplyr::if_else(is.na(question2), "NaN!", question2)
   )  %>%
-  write.csv("./data/consol_with_custid.csv", row.names = F)
+  write.csv("./data/consol_with_custid_opim5671.csv", row.names = F)
 ```
 
 
 ## Tidy text
 Load the raw text:
 ```{r}
-if (!exists("raw.df")) raw.df <- read.csv("./data/raw.csv", stringsAsFactors = F)
+if (!exists("raw.df")) raw.df <- read.csv("./data/raw_opim5671.csv", stringsAsFactors = F)
 summary(raw.df)
 ```
 
