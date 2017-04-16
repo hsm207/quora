@@ -245,4 +245,5 @@ if (!exists("word.count.df"))
 summary(word.count.df)
 ```
 
+## Count nouns and Wh- words
 
