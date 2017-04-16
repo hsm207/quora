@@ -30,6 +30,12 @@ train.df %<>%
 summary(train.df)
 
 ```
+```{r}
+train.df %>%
+  dplyr::select(question1, question2) %>%
+  head
+```
+
 View target label's distribution:
 ```{r}
 train.df %>%
@@ -51,12 +57,24 @@ summary(test.df)
 
 ```
 
+```{r}
+test.df %>%
+  dplyr::select(question1, question2) %>%
+  head
+```
+
+
 Consolidate the train and test set:
 ```{r}
 consol.df <- train.df %>%
   dplyr::bind_rows(test.df)
 
 summary(consol.df)
+```
+```{r}
+consol.df %>%
+  dplyr::select(question1, question2) %>%
+  head
 ```
 
 # Data preprocessing
@@ -94,7 +112,7 @@ test.df %<>%
 head(test.df)
 ```
 
-Join the questions in the test set into `test.df`:
+Join the questions in the test set into `raw.df`:
 ```{r}
 raw.df %<>%
   dplyr::bind_rows(
@@ -117,7 +135,7 @@ raw.df %>%
   write.csv("./data/raw.csv", row.names = F)
 ```
 
-Also, save `test.df` with the customised question ids:
+Also, save consolidated data with the customised question ids:
 ```{r}
 consol_with_custid.df <- train.df %>%
   dplyr::mutate(qid1 = as.character(qid1),
@@ -128,7 +146,7 @@ consol_with_custid.df %>%
   # replace missing questions with some dummy string to avoid errors duing feature engineering
   dplyr::mutate(
   question1 = dplyr::if_else(is.na(question1), "NaN!", question1),
-  question2 = dplyr::if_else(is.na(question2), "NaN!", question1)
+  question2 = dplyr::if_else(is.na(question2), "NaN!", question2)
   )  %>%
   write.csv("./data/consol_with_custid.csv", row.names = F)
 ```
@@ -226,4 +244,5 @@ if (!exists("word.count.df"))
   )
 summary(word.count.df)
 ```
+
 
