@@ -280,3 +280,7 @@ consol.df %>%
   geom_boxplot()
 ```
 
+```{r}
+rm(word.count.df)
+```
+
