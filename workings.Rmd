@@ -207,6 +207,7 @@ Script is in `count_noun_wh.R`.
 Load the consolidated data set if it is not already loaded:
 ```{r}
 if (!exists("consol.df"))
+  library(readr)
   consol.df <- read_csv("./data/consol_with_custid_opim5671.csv",
   col_types = cols(is_duplicate = col_logical())
   )
