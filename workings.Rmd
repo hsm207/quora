@@ -288,3 +288,32 @@ consol.df %>%
 rm(word.count.df)
 ```
 
+## Semantic similarity
+
+Load the file containing the consolidated similarity measures:
+```{r}
+sim.df <- read.csv("./results/sim_measures/consol_sim_measures_train_only.csv", stringsAsFactors = F) %>%
+  dplyr::arrange(qid1, qid2)
+
+head(sim.df)
+```
+
+```{r}
+summary(sim.df)
+```
+
+Column bind the similarity measures:
+```{r}
+consol.df %<>%
+  # Cannot compare by question1, question 2 because encoding differs (non text characters)
+  dplyr::arrange(qid1, qid2) %>%
+  dplyr::bind_cols(dplyr::select(sim.df, CosSim:CorWght))
+
+consol.df %>%
+  dplyr::select(question1, question2, is_duplicate, CosSim:CorWght)
+```
+
+```{r}
+rm(sim.df)
+```
+
