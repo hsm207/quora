@@ -202,6 +202,10 @@ summary(word.count.df)
 
 Script is in `count_noun_wh.R`.
 
+## Compute semantic similarity
+
+Script is a python script named `cortical_similarities.py`.
+
 # Model building
 
 Load the consolidated data set if it is not already loaded:
