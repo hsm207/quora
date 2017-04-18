@@ -199,3 +199,4 @@ summary(word.count.df)
 
 ## Count nouns and Wh- words
 
+Script is in `count_noun_wh.R`.
