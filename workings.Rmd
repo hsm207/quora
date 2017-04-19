@@ -305,9 +305,9 @@ summary(sim.df)
 Column bind the similarity measures:
 ```{r}
 consol.df %<>%
-  # Cannot compare by question1, question 2 because encoding differs (non text characters)
-  dplyr::arrange(qid1, qid2) %>%
-  dplyr::bind_cols(dplyr::select(sim.df, CosSim:CorWght))
+  dplyr::left_join(dplyr::select(sim.df, c(id, CosSim:CorWght)),
+                   by = c("id" = "id")) %>%
+  dplyr::arrange(qid1, qid2)
 
 consol.df %>%
   dplyr::select(question1, question2, is_duplicate, CosSim:CorWght)
@@ -346,5 +346,50 @@ consol.df %<>%
 rm(nandwh.df)
 rm(nandwh.failed.df)
 gc()
+```
+
+## Data partition
+
+Partition the data into 70:30 train and test set:
+
+```{r}
+train.set <- caret::createDataPartition(consol.df$is_duplicate, p = 0.7, list = F) %>%
+  consol.df[., ]
+
+test.set <- consol.df %>%
+  dplyr::setdiff(train.set)
+
+```
+
+Double check that target variable distribution is the same:
+```{r}
+train.set %>%
+  dplyr::group_by(is_duplicate) %>%
+  dplyr::summarise(n = n()) %>%
+  dplyr::mutate(n = n/sum(n))
+```
+
+```{r}
+test.set %>%
+  dplyr::group_by(is_duplicate) %>%
+  dplyr::summarise(n = n()) %>%
+  dplyr::mutate(n = n/sum(n))
+```
+
+Save the training and test set:
+```{r}
+train.set %>%
+  dplyr::select(-c(qid1:question2, type)) %>%
+  write.csv("./models/train_h2o.csv", row.names = F)
+
+test.set %>%
+  dplyr::select(-c(qid1:question2, type)) %>%
+  write.csv("./models/test_h2o.csv", row.names = F)
+
+```
+
+```{r}
+rm(test.set)
+rm(train.set)
 ```
 
