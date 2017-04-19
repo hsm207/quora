@@ -288,7 +288,7 @@ consol.df %>%
 rm(word.count.df)
 ```
 
-## Semantic similarity
+### Semantic similarity
 
 Load the file containing the consolidated similarity measures:
 ```{r}
@@ -316,4 +316,5 @@ consol.df %>%
 ```{r}
 rm(sim.df)
 ```
+
 
