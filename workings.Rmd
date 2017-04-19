@@ -317,4 +317,34 @@ consol.df %>%
 rm(sim.df)
 ```
 
+### Noun and Wh-tag count
+
+Load the files:
+```{r}
+nandwh.df <-
+  read.csv("./results/nouns_and_wh/consol_count_nouns_and_wh.csv",
+           stringsAsFactors = F) %>%
+  dplyr::select(id, q1.nouns:common.wh)
+
+nandwh.failed.df <-
+  read.csv(
+    "./results/nouns_and_wh/corenlp_failed_rows_2017-04-18_retry.csv",
+    stringsAsFactors = F
+  ) %>%
+  # I messed up the input file when retrying the parsing :(
+  dplyr::select(id, q1.nouns:common.wh)
+```
+
+Include the noun and wh-tag count features:
+```{r}
+consol.df %<>%
+  dplyr::left_join(dplyr::bind_rows(nandwh.df, nandwh.failed.df),
+                   by = c("id" = "id"))
+```
+
+```{r}
+rm(nandwh.df)
+rm(nandwh.failed.df)
+gc()
+```
 
