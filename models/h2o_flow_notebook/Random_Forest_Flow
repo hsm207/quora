@@ -1,0 +1,41 @@
+{
+  "version": "1.0.0",
+  "cells": [
+    {
+      "type": "cs",
+      "input": "assist"
+    },
+    {
+      "type": "cs",
+      "input": "getFrames"
+    },
+    {
+      "type": "cs",
+      "input": "assist buildModel, null, training_frame: \"train.hex\""
+    },
+    {
+      "type": "cs",
+      "input": "buildModel 'drf', {\"model_id\":\"model_rf\",\"training_frame\":\"train.hex\",\"nfolds\":\"5\",\"response_column\":\"is_duplicate\",\"ignored_columns\":[\"id\"],\"ignore_const_cols\":true,\"seed\":-1,\"mtries\":-1,\"score_each_iteration\":false,\"score_tree_interval\":0,\"fold_assignment\":\"AUTO\",\"nbins_top_level\":1024,\"nbins_cats\":1024,\"r2_stopping\":1.7976931348623157e+308,\"stopping_rounds\":\"10\",\"stopping_metric\":\"logloss\",\"stopping_tolerance\":0.001,\"max_runtime_secs\":0,\"checkpoint\":\"\",\"min_split_improvement\":0.00001,\"histogram_type\":\"AUTO\",\"categorical_encoding\":\"AUTO\",\"keep_cross_validation_predictions\":false,\"keep_cross_validation_fold_assignment\":false,\"build_tree_one_node\":false,\"sample_rate_per_class\":[],\"binomial_double_trees\":true,\"grid_id\":\"grid_rf\",\"hyper_parameters\":{\"ntrees\":[\"50\",\"100\",\"500\"],\"max_depth\":[\"10\",\"20\",\"30\"],\"min_rows\":[\"1\",\"10\",\"20\",\"50\"],\"nbins\":[\"20\",\"10\",\"30\"],\"sample_rate\":[\"0.6320000290870667\",\"0.1\",\"0.2\",\"0.3\"],\"balance_classes\":[true,false],\"col_sample_rate_per_tree\":[\"1\",\"0.1\",\"0.8\",\"0.5\"],\"col_sample_rate_change_per_level\":[\"1\",\"0.1\",\"0.5\",\"2.0\"]},\"search_criteria\":{\"strategy\":\"RandomDiscrete\",\"max_models\":2,\"max_runtime_secs\":0,\"stopping_rounds\":10,\"stopping_tolerance\":0.001,\"stopping_metric\":\"logloss\"}}"
+    },
+    {
+      "type": "cs",
+      "input": "predict frame: \"test.hex\""
+    },
+    {
+      "type": "cs",
+      "input": "getGrid \"grid_rf\""
+    },
+    {
+      "type": "cs",
+      "input": "predict model: \"grid_rf_model_0\""
+    },
+    {
+      "type": "cs",
+      "input": "predict model: \"grid_rf_model_0\", frame: \"test.hex\", predictions_frame: \"predict_test_with_model_0\""
+    },
+    {
+      "type": "cs",
+      "input": "predict model: \"grid_rf_model_1\""
+    }
+  ]
+}
