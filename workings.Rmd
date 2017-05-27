@@ -6,6 +6,7 @@ output:
     toc_float: TRUE
 ---
 
+
 # Introduction
 
 Click [here](https://www.kaggle.com/c/quora-question-pairs)
@@ -13,6 +14,7 @@ Click [here](https://www.kaggle.com/c/quora-question-pairs)
 # Load libraries
 ```{r}
 library(magrittr)
+library(ggplot2)
 ```
 
 
@@ -30,6 +32,12 @@ train.df %<>%
 summary(train.df)
 
 ```
+```{r}
+train.df %>%
+  dplyr::select(question1, question2) %>%
+  head
+```
+
 View target label's distribution:
 ```{r}
 train.df %>%
@@ -51,21 +59,21 @@ summary(test.df)
 
 ```
 
-Consolidate the train and test set:
 ```{r}
-consol.df <- train.df %>%
-  dplyr::bind_rows(test.df)
-
-summary(consol.df)
+test.df %>%
+  dplyr::select(question1, question2) %>%
+  head
 ```
+
+For the purpose of OPIM 5671, do not work on test since it is too time consuming to engineer features for 2 million questions.
+
 
 # Data preprocessing
 
 ## Raw text
 
-Create a two-column data frame, question_id and question.
+Create a two-column data frame, question_id and question:
 
-Start with the training set:
 ```{r}
 raw.df <- train.df %>%
   dplyr::select(qid1, question1) %>%
@@ -77,67 +85,31 @@ raw.df <- train.df %>%
 
 ```
 
-Create dummy question ids for test set:
-```{r}
-dummy.ids <-
-  matrix(paste(1:(nrow(test.df) * 2), "test", sep = "-"), ncol = 2) %>%
-  as.data.frame(stringsAsFactors = F) %>%
-  magrittr::set_colnames(c("qid1", "qid2"))
-  
-head(dummy.ids)
-```
-
-```{r}
-test.df %<>%
-  dplyr::bind_cols(dummy.ids)
-
-head(test.df)
-```
-
-Join the questions in the test set into `test.df`:
-```{r}
-raw.df %<>%
-  dplyr::bind_rows(
-    test.df %>%
-      dplyr::select(qid1, question1) %>%
-      magrittr::set_colnames(c("question_id", "question")) %>%
-      dplyr::bind_rows(test.df %>%
-      dplyr::select(qid2, question2) %>%
-      magrittr::set_colnames(c("question_id", "question"))
-      )
-  )
-
-summary(raw.df)
-```
 
 Save `raw.df` (only unique question id and question pairs!):
 ```{r}
 raw.df %>%
   dplyr::distinct() %>%
-  write.csv("./data/raw.csv", row.names = F)
+  write.csv("./data/raw_opim5671.csv", row.names = F)
 ```
 
-Also, save `test.df` with the customised question ids:
+Also, fill missing questions in `train.df` and save it for feature engineering:
 ```{r}
-consol_with_custid.df <- train.df %>%
-  dplyr::mutate(qid1 = as.character(qid1),
-                qid2 = as.character(qid2)) %>%
-  dplyr::bind_rows(test.df)
 
-consol_with_custid.df %>%
+train.df %>%
   # replace missing questions with some dummy string to avoid errors duing feature engineering
   dplyr::mutate(
   question1 = dplyr::if_else(is.na(question1), "NaN!", question1),
-  question2 = dplyr::if_else(is.na(question2), "NaN!", question1)
+  question2 = dplyr::if_else(is.na(question2), "NaN!", question2)
   )  %>%
-  write.csv("./data/consol_with_custid.csv", row.names = F)
+  write.csv("./data/consol_with_custid_opim5671.csv", row.names = F)
 ```
 
 
 ## Tidy text
 Load the raw text:
 ```{r}
-if (!exists("raw.df")) raw.df <- read.csv("./data/raw.csv", stringsAsFactors = F)
+if (!exists("raw.df")) raw.df <- read.csv("./data/raw_opim5671.csv", stringsAsFactors = F)
 summary(raw.df)
 ```
 
@@ -225,5 +197,200 @@ if (!exists("word.count.df"))
   word.count.df <- read.csv("./data/raw_with_word_count.csv", stringsAsFactors = F
   )
 summary(word.count.df)
+```
+
+## Count nouns and Wh- words
+
+Script is in `count_noun_wh.R`.
+
+## Compute semantic similarity
+
+Script is a python script named `cortical_similarities.py`.
+
+# Model building
+
+Load the consolidated data set if it is not already loaded:
+```{r}
+if (!exists("consol.df"))
+  library(readr)
+  consol.df <- read_csv("./data/consol_with_custid_opim5671.csv",
+  col_types = cols(is_duplicate = col_logical())
+  )
+```
+
+```{r}
+head(train.df)
+```
+
+```{r}
+summary(consol.df)
+```
+
+
+## Consolidate features
+
+### Word count
+
+Import the word count file:
+```{r}
+word.count.df <- read.csv("./data/raw_with_word_count.csv", stringsAsFactors = F)
+
+head(word.count.df)
+```
+
+For the purpose of OPIM 5671, filter the file to remove test set and adjust the question id:
+```{r}
+
+word.count.df %<>%
+  dplyr::filter(!stringr::str_detect(question_id, "test")) %>%
+  dplyr::mutate(question_id = as.integer(stringr::str_replace(question_id, "(\\d*)-train", "\\1"))) 
+```
+
+Get the word count for question 1 and question 2:
+```{r}
+consol.df %<>%
+  dplyr::left_join(word.count.df, by = c("qid1" = "question_id")) %>%
+  dplyr::rename(q1.wc = n ) %>%
+  dplyr::left_join(word.count.df, by = c("qid2" = "question_id")) %>%
+  dplyr::rename(q2.wc = n)
+
+consol.df %>%
+  dplyr::select(q1.wc, q2.wc) %>%
+  summary
+```
+
+The NAs are "questions" consisting of punctuations or unicode only, so set them to zero:
+```{r}
+consol.df %<>%
+  dplyr::mutate(q1.wc = dplyr::if_else(is.na(q1.wc), 0L, q1.wc),
+                q2.wc = dplyr::if_else(is.na(q2.wc), 0L, q2.wc))
+
+```
+
+Compute the difference in word count:
+
+```{r}
+consol.df %<>%
+  dplyr::mutate(diff.wc = abs(q1.wc - q2.wc))
+
+consol.df %>%
+  dplyr::select(q1.wc:diff.wc) %>%
+  summary
+```
+
+Vizualize distribution of word counts among the duplicates:
+```{r}
+consol.df %>%
+  ggplot(aes(x = is_duplicate, y = diff.wc)) +
+  geom_boxplot()
+```
+
+```{r}
+rm(word.count.df)
+```
+
+### Semantic similarity
+
+Load the file containing the consolidated similarity measures:
+```{r}
+sim.df <- read.csv("./results/sim_measures/consol_sim_measures_train_only.csv", stringsAsFactors = F) %>%
+  dplyr::arrange(qid1, qid2)
+
+head(sim.df)
+```
+
+```{r}
+summary(sim.df)
+```
+
+Column bind the similarity measures:
+```{r}
+consol.df %<>%
+  dplyr::left_join(dplyr::select(sim.df, c(id, CosSim:CorWght)),
+                   by = c("id" = "id")) %>%
+  dplyr::arrange(qid1, qid2)
+
+consol.df %>%
+  dplyr::select(question1, question2, is_duplicate, CosSim:CorWght)
+```
+
+```{r}
+rm(sim.df)
+```
+
+### Noun and Wh-tag count
+
+Load the files:
+```{r}
+nandwh.df <-
+  read.csv("./results/nouns_and_wh/consol_count_nouns_and_wh.csv",
+           stringsAsFactors = F) %>%
+  dplyr::select(id, q1.nouns:common.wh)
+
+nandwh.failed.df <-
+  read.csv(
+    "./results/nouns_and_wh/corenlp_failed_rows_2017-04-18_retry.csv",
+    stringsAsFactors = F
+  ) %>%
+  # I messed up the input file when retrying the parsing :(
+  dplyr::select(id, q1.nouns:common.wh)
+```
+
+Include the noun and wh-tag count features:
+```{r}
+consol.df %<>%
+  dplyr::left_join(dplyr::bind_rows(nandwh.df, nandwh.failed.df),
+                   by = c("id" = "id"))
+```
+
+```{r}
+rm(nandwh.df)
+rm(nandwh.failed.df)
+gc()
+```
+
+## Data partition
+
+Partition the data into 70:30 train and test set:
+
+```{r}
+train.set <- caret::createDataPartition(consol.df$is_duplicate, p = 0.7, list = F) %>%
+  consol.df[., ]
+
+test.set <- consol.df %>%
+  dplyr::setdiff(train.set)
+
+```
+
+Double check that target variable distribution is the same:
+```{r}
+train.set %>%
+  dplyr::group_by(is_duplicate) %>%
+  dplyr::summarise(n = n()) %>%
+  dplyr::mutate(n = n/sum(n))
+```
+
+```{r}
+test.set %>%
+  dplyr::group_by(is_duplicate) %>%
+  dplyr::summarise(n = n()) %>%
+  dplyr::mutate(n = n/sum(n))
+```
+
+Save the training and test set:
+```{r}
+train.set %>%
+  dplyr::select(-c(qid1:question2, type)) %>%
+  write.csv("./models/train_h2o.csv", row.names = F)
+
+test.set %>%
+  dplyr::select(-c(qid1:question2, type)) %>%
+  write.csv("./models/test_h2o.csv", row.names = F)
+
+```
+
+```{r}
+rm(test.set)
+rm(train.set)
 ```
 
